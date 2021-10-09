@@ -1,0 +1,9 @@
+name = "MemoryFlow"
+uuid = "641db624-8d85-4766-8bd6-b601b2c5c0ec"
+authors = ["Luke Bemish <lukebemish@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
+LSODA = "7f56f5a3-f504-529b-bc02-0b1fe5e64312"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"

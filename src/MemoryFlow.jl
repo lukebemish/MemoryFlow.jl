@@ -1,28 +1,56 @@
-struct SimpleMemoryLayer :> AbstractMemoryLayer
-    # Add some sort of check that f is valid, because if it's not, then
-    # there will be some serious issues.
-    f::Function # f(self_values,layers,t) -> Vector{dy/dt} (size is outsize)
+module MemoryFlow
+export SimpleNode, AbstractNode
+export solvediffeq, makediffeq, treeparse
+
+using LSODA, DiffEqBase
+
+abstract type AbstractNode end
+
+struct SimpleNode <: AbstractNode
+    # we need checks for this function!
+    f::Function # f(this_node,input_nodes) -> ((t,x,xs) -> dx/dt)
     inputs::Vector
-    outsize::Real
 end
 
-function treeparse(layer::AbstractMemoryLayer, done::Vector)
-    outpair = layer => layer.outsize
-    newdone = [done;layer]
-    tocheck = filter((x) -> x ∉ done, layer.inputs)
-    return [outpair;[treeparse(l,newdone) for l=tocheck]...]
+function treeparse(nodes::Vector, done::Vector)
+    newdone=done
+    for i=nodes
+        if i ∉ done
+            outpair = i=>length(newdone)+1
+            newdone = [newdone;outpair]
+        end
+        for j=i.inputs
+            if j ∉ done
+                newdone = treeparse([j],newdone)
+            end
+        end
+    end
+    newdone
 end
 
 function makediffeq(parsedtree::Vector)
-    keys=getproperty.(parsedtree,:first)
-    values=getproperty.(parsedtree,:second)
-    useful = Dict(keys[i]=>(values[i],i) for i=1:size(keys))
-    outeq=[]
-    for layer=keys
-        idxs = [useful[i][2]:(useful[i][2]+useful[i][1]-1) for i in layer.inputs]
-        sidxs = useful[layer][2]:(useful[layer][2]+useful[layer][1]-1)
-        f = (x,t) -> layer.f(x[sidxs],x[(idxs...)...],t)
-        push!(outeq,f)
+    fs = []
+    for node=getproperty.(parsedtree,:first)
+        ids = [parsedtree[i] for i=node.inputs]
+        idthis = parsedtree[node]
+        nf = node.f(node,node.inputs)
+        f = (t,x) -> nf(t,x[idthis],x[ids])
+        push!(fs,f)
     end
-    return (x,t) -> [([f(x,t) for f in outeq]...)...]
+    iterer = enumerate(fs)
+    return (dx,x,p,t) -> [dx[i]=f(t,x) for (i,f) in iterer], length(fs)
+end
+
+function solvediffeq(neteq, size; x_init = 0.5, tmax=1.)
+    neteq! = diffeqtuple[1]
+    size = diffeqtuple[2]
+    tspan = (0.,tmax)
+    x0 = fill(x_init,size)
+
+    prob = ODEProblem(neteq!,x0,tspan)
+    solve(prob,lsoda())
+end
+
+include("nodes.jl")
+
 end

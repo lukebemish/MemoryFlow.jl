@@ -86,7 +86,7 @@ function eval_nodes(nodes::Vector;kwargs...)
     return [i.val for i=nodes]
 end
 
-function update_node(node::AbstractNode)
+function update_node!(node::AbstractNode; kwargs...)
     # This does nothing; most nodes don't need updating.
 end
 

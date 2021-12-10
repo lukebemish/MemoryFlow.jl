@@ -18,8 +18,8 @@ end
 
 export set_input_val!
 
-function update_val!(node::InputNode, val::Float64)
-    # Do nothing
+function Base.show(io::IO, n::InputNode)
+    print(io, "MemoryFlow.InputNode: ", n.starting_val)
 end
 
 mutable struct RozellLCANode <: AbstractNode
@@ -28,6 +28,11 @@ mutable struct RozellLCANode <: AbstractNode
     starting_val::Float64
     competitive_key::Vector # vector of places in input where input is anti-hebbian
     biases::Vector # length is length(input) - length(competitive_key)
+end
+
+function Base.show(io::IO, n::RozellLCANode)
+    print(io, "MemoryFlow.RozellLCANode: ", length(n.inputs)-length(n.competitive_key),
+        ", ",length(n.competitive_key), ", ", n.val)
 end
 
 thresval = 0.2
@@ -62,8 +67,12 @@ function make_rozell_lca_layer(size::Integer,inputs::Vector)
     nodes
 end
 
-function update_node(node::RozellLCANode)
+function update_node!(node::RozellLCANode; β=0.02, kwargs...)
     # Node updating or Hebbian learning goes here
+    # To start with, I'll jsut have some simple Hebbian learning
+    in_ids = filter(x -> x ∉ node.competitive_key, 1:length(node.inputs))
+    dq = β * node.val * (node[in_ids] - node.biases)
+    node.biases += dq
 end
 
 function make_nodes(type::Val{:RozellLCA},size::Integer,inputs::Vector,kwargs...)
